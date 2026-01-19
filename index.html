@@ -1,0 +1,899 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Thailand Electricity Dashboard (2566)</title>
+
+  <!-- Chart.js (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <style>
+    :root{
+      --bg:#0b1020;
+      --panel:#111833;
+      --panel2:#0f1630;
+      --text:#e8ecff;
+      --muted:#a9b2d6;
+      --line:rgba(255,255,255,.10);
+      --accent:#6aa9ff;
+      --good:#7cf5b1;
+      --warn:#ffd36a;
+      --bad:#ff7a7a;
+      --radius:16px;
+      --shadow: 0 10px 30px rgba(0,0,0,.25);
+    }
+
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Liberation Sans";
+      background: radial-gradient(1200px 800px at 10% 0%, rgba(106,169,255,.18), transparent 60%),
+                  radial-gradient(900px 600px at 90% 20%, rgba(124,245,177,.12), transparent 55%),
+                  var(--bg);
+      color:var(--text);
+    }
+
+    header{
+      padding:20px 18px 10px;
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+    .title{
+      display:flex;
+      gap:12px;
+      align-items:baseline;
+      flex-wrap:wrap;
+    }
+    .title h1{
+      margin:0;
+      font-size:20px;
+      letter-spacing:.2px;
+      font-weight:700;
+    }
+    .title .sub{
+      color:var(--muted);
+      font-size:13px;
+    }
+
+    .container{
+      max-width:1280px;
+      margin:0 auto;
+      padding: 12px 18px 28px;
+      display:grid;
+      grid-template-columns: 1.45fr .95fr;
+      gap:14px;
+    }
+
+    .panel{
+      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+      border:1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .panel .hd{
+      padding:12px 14px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      border-bottom:1px solid var(--line);
+      background: rgba(0,0,0,.12);
+    }
+    .panel .hd .h{
+      font-weight:700;
+      font-size:13px;
+      letter-spacing:.2px;
+    }
+    .panel .bd{
+      padding:12px 14px 14px;
+    }
+
+    .controls{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      align-items:center;
+    }
+    select, input[type="search"], input[type="number"], button{
+      background: rgba(0,0,0,.25);
+      color:var(--text);
+      border:1px solid var(--line);
+      border-radius: 12px;
+      padding:8px 10px;
+      font-size:13px;
+      outline:none;
+    }
+    select:focus, input:focus, button:focus{border-color: rgba(106,169,255,.6)}
+    button{
+      cursor:pointer;
+      transition: transform .05s ease;
+    }
+    button:active{transform: translateY(1px)}
+    .chip{
+      padding:8px 10px;
+      border-radius:12px;
+      border:1px dashed rgba(255,255,255,.16);
+      color:var(--muted);
+      font-size:12px;
+      user-select:none;
+      white-space:nowrap;
+    }
+
+    .grid2{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:14px;
+    }
+
+    .kpis{
+      display:grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap:10px;
+    }
+    .kpi{
+      background: rgba(0,0,0,.18);
+      border:1px solid var(--line);
+      border-radius: 14px;
+      padding:10px 10px;
+      min-height:74px;
+    }
+    .kpi .lab{
+      color:var(--muted);
+      font-size:11px;
+      margin-bottom:6px;
+    }
+    .kpi .val{
+      font-size:16px;
+      font-weight:800;
+      line-height:1.1;
+    }
+    .kpi .hint{
+      color:var(--muted);
+      font-size:11px;
+      margin-top:6px;
+    }
+
+    .muted{color:var(--muted)}
+    .note{
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.35;
+    }
+
+    .tableWrap{
+      max-height: 380px;
+      overflow:auto;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: rgba(0,0,0,.14);
+    }
+    table{
+      width:100%;
+      border-collapse: collapse;
+      font-size:12px;
+    }
+    th, td{
+      padding:10px 10px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+      text-align:left;
+      vertical-align:middle;
+    }
+    th{
+      position: sticky;
+      top:0;
+      background: rgba(10,16,32,.95);
+      z-index:1;
+      font-size:11px;
+      letter-spacing:.15px;
+      color: var(--muted);
+    }
+    tr:hover td{background: rgba(106,169,255,.07)}
+    .right{text-align:right}
+
+    .footerTip{
+      margin-top:10px;
+      padding:10px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.16);
+      font-size:12px;
+      color: var(--muted);
+    }
+
+    .err{
+      padding: 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,122,122,.35);
+      background: rgba(255,122,122,.08);
+      color: #ffd0d0;
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    @media (max-width: 1050px){
+      .container{grid-template-columns: 1fr; }
+      .kpis{grid-template-columns: repeat(2, 1fr);}
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class="title">
+      <h1>Electricity Dashboard by Province</h1>
+      <div class="sub">Interactive charts (Bar + Pie) • Year selector • Click bars to drill down</div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- LEFT: BAR + TABLE -->
+    <section class="panel">
+      <div class="hd">
+        <div class="h">Bar Chart — Provinces (Top N)</div>
+        <div class="controls">
+          <span class="chip" id="dataStatus">Loading data…</span>
+          <label class="muted" style="font-size:12px;">Year</label>
+          <select id="yearSelect"></select>
+
+          <label class="muted" style="font-size:12px;">Metric</label>
+          <select id="metricSelect">
+            <option value="kwh_total">Total kWh</option>
+            <option value="users_total">Total Users</option>
+            <option value="kwh_per_user">kWh / User</option>
+            <option value="ev_kwh">EV Charging kWh</option>
+            <option value="ev_users">EV Charging Users</option>
+          </select>
+
+          <label class="muted" style="font-size:12px;">Top</label>
+          <input id="topN" type="number" min="5" max="77" step="1" value="15" style="width:76px;" />
+
+          <button id="resetSelection" title="Show pie as All provinces">All Provinces</button>
+        </div>
+      </div>
+
+      <div class="bd">
+        <canvas id="barChart" height="120"></canvas>
+
+        <div style="margin-top:12px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+          <div class="note">
+            Tip: click a bar to select a province. The pie + KPIs will update.
+          </div>
+          <div class="note" id="selectionHint">Selected: <b>All provinces</b></div>
+        </div>
+
+        <div style="margin-top:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <input id="searchProvince" type="search" placeholder="Search province (e.g., Bangkok)…" />
+          <span class="chip">Table shows Users + kWh + kWh/User</span>
+        </div>
+
+        <div style="margin-top:10px;" class="tableWrap">
+          <table id="provinceTable">
+            <thead>
+              <tr>
+                <th style="width:26%;">Province</th>
+                <th class="right">Users (Total)</th>
+                <th class="right">kWh (Total)</th>
+                <th class="right">kWh / User</th>
+                <th class="right">EV Users</th>
+                <th class="right">EV kWh</th>
+              </tr>
+            </thead>
+            <tbody><!-- filled by JS --></tbody>
+          </table>
+        </div>
+
+        <div class="footerTip">
+          If your charts don’t load when opening <b>file://</b>, run a local server (because browsers block fetch from local files).
+          Example: <span class="muted">python -m http.server 8000</span> then open <span class="muted">http://localhost:8000</span>.
+        </div>
+
+        <div id="errorBox" style="display:none; margin-top:12px;" class="err"></div>
+      </div>
+    </section>
+
+    <!-- RIGHT: PIE + KPIS -->
+    <section class="panel">
+      <div class="hd">
+        <div class="h">Pie Chart — Category Share</div>
+        <div class="controls">
+          <label class="muted" style="font-size:12px;">Pie</label>
+          <select id="pieMode">
+            <option value="kwh">kWh share</option>
+            <option value="users">Users share</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="bd">
+        <canvas id="pieChart" height="150"></canvas>
+
+        <div style="margin-top:12px;" class="kpis">
+          <div class="kpi">
+            <div class="lab">Scope</div>
+            <div class="val" id="kpiScope">All provinces</div>
+            <div class="hint" id="kpiYear">Year: —</div>
+          </div>
+          <div class="kpi">
+            <div class="lab">Total Users</div>
+            <div class="val" id="kpiUsers">—</div>
+            <div class="hint">sum of all categories</div>
+          </div>
+          <div class="kpi">
+            <div class="lab">Total kWh</div>
+            <div class="val" id="kpiKwh">—</div>
+            <div class="hint">sum of all categories</div>
+          </div>
+          <div class="kpi">
+            <div class="lab">kWh / User</div>
+            <div class="val" id="kpiKwhPerUser">—</div>
+            <div class="hint">overall intensity</div>
+          </div>
+        </div>
+
+        <div style="margin-top:12px;" class="panel" style="box-shadow:none;">
+          <div class="hd">
+            <div class="h">Insight</div>
+          </div>
+          <div class="bd">
+            <div class="note" id="insightText">
+              Loading…
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+<script>
+  // --------- Files (must be in same folder) ----------
+  const USERS_FILE  = "./electricity_users_en.json";
+  const USAGES_FILE = "./electricity_usages_en.json";
+
+  // --------- Key mappings ----------
+  const CATEGORY_KEYS = [
+    { key: "residential",              label: "Residential" },
+    { key: "small_business",           label: "Small Business" },
+    { key: "medium_business",          label: "Medium Business" },
+    { key: "large_business",           label: "Large Business" },
+    { key: "specialized_business",     label: "Specialized Business" },
+    { key: "backup_power",             label: "Backup Power" },
+    { key: "interruptible_rate",       label: "Interruptible Rate" },
+    { key: "public_electricity",       label: "Public Electricity" },
+    { key: "government_state_enterprise", label: "Gov/State Enterprise" },
+    { key: "water_pumping",            label: "Water Pumping" },
+    { key: "temporary_electricity",    label: "Temporary Electricity" },
+    { key: "ev_charging",              label: "EV Charging" },
+  ];
+
+  const fmtInt = new Intl.NumberFormat("en-US");
+  const fmt2 = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
+  const fmt0 = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
+
+  // --------- State ----------
+  let rawUsers = [];
+  let rawUsages = [];
+  let mergedByYear = new Map();  // year -> array of merged rows
+  let selectedYear = null;
+  let selectedProvinceCode = null; // null = all
+  let barChart = null;
+  let pieChart = null;
+
+  // --------- DOM ----------
+  const elStatus = document.getElementById("dataStatus");
+  const elYear = document.getElementById("yearSelect");
+  const elMetric = document.getElementById("metricSelect");
+  const elTopN = document.getElementById("topN");
+  const elReset = document.getElementById("resetSelection");
+  const elPieMode = document.getElementById("pieMode");
+  const elSelHint = document.getElementById("selectionHint");
+  const elSearch = document.getElementById("searchProvince");
+  const elTableBody = document.querySelector("#provinceTable tbody");
+  const elErrorBox = document.getElementById("errorBox");
+
+  const kpiScope = document.getElementById("kpiScope");
+  const kpiYear = document.getElementById("kpiYear");
+  const kpiUsers = document.getElementById("kpiUsers");
+  const kpiKwh = document.getElementById("kpiKwh");
+  const kpiKwhPerUser = document.getElementById("kpiKwhPerUser");
+  const insightText = document.getElementById("insightText");
+
+  function showError(msg){
+    elErrorBox.style.display = "block";
+    elErrorBox.textContent = msg;
+  }
+
+  function hideError(){
+    elErrorBox.style.display = "none";
+    elErrorBox.textContent = "";
+  }
+
+  // --------- Data helpers ----------
+  function sumUsers(row){
+    let s = 0;
+    for (const c of CATEGORY_KEYS){
+      const v = Number(row[`${c.key}_count`] ?? 0);
+      s += (Number.isFinite(v) ? v : 0);
+    }
+    return s;
+  }
+
+  function sumKwh(row){
+    let s = 0;
+    for (const c of CATEGORY_KEYS){
+      const v = Number(row[`${c.key}_kwh`] ?? 0);
+      s += (Number.isFinite(v) ? v : 0);
+    }
+    return s;
+  }
+
+  function safeDiv(a,b){
+    if (!b) return 0;
+    return a / b;
+  }
+
+  function buildMerged(usersArr, usagesArr){
+    const usersMap = new Map(); // year|province_code -> user row
+    for (const r of usersArr){
+      usersMap.set(`${r.year}|${r.province_code}`, r);
+    }
+
+    const years = new Set();
+    const outByYear = new Map();
+
+    // usages file might be wrapped in {Sheet1:[...]}
+    const usageRows = Array.isArray(usagesArr) ? usagesArr : (usagesArr?.Sheet1 ?? []);
+
+    for (const u of usageRows){
+      const key = `${u.year}|${u.province_code}`;
+      const userRow = usersMap.get(key) || {};
+      const merged = {
+        year: u.year,
+        province_code: u.province_code,
+        province_name: u.province_name ?? userRow.province_name ?? String(u.province_code),
+
+        // keep raw rows
+        _users: userRow,
+        _usages: u,
+      };
+
+      // flatten counts + kwh into merged
+      for (const c of CATEGORY_KEYS){
+        merged[`${c.key}_count`] = Number(userRow[`${c.key}_count`] ?? 0);
+        merged[`${c.key}_kwh`] = Number(u[`${c.key}_kwh`] ?? 0);
+      }
+
+      merged.users_total = sumUsers(merged);
+      merged.kwh_total = sumKwh(merged);
+      merged.kwh_per_user = safeDiv(merged.kwh_total, merged.users_total);
+
+      years.add(merged.year);
+      if (!outByYear.has(merged.year)) outByYear.set(merged.year, []);
+      outByYear.get(merged.year).push(merged);
+    }
+
+    // Also include any user rows that have no usage row (rare) so they still appear
+    for (const r of usersArr){
+      const key = `${r.year}|${r.province_code}`;
+      const found = usageRows.find(x => `${x.year}|${x.province_code}` === key);
+      if (found) continue;
+
+      const merged = {
+        year: r.year,
+        province_code: r.province_code,
+        province_name: r.province_name ?? String(r.province_code),
+        _users: r,
+        _usages: {},
+      };
+      for (const c of CATEGORY_KEYS){
+        merged[`${c.key}_count`] = Number(r[`${c.key}_count`] ?? 0);
+        merged[`${c.key}_kwh`] = 0;
+      }
+      merged.users_total = sumUsers(merged);
+      merged.kwh_total = 0;
+      merged.kwh_per_user = 0;
+
+      years.add(merged.year);
+      if (!outByYear.has(merged.year)) outByYear.set(merged.year, []);
+      outByYear.get(merged.year).push(merged);
+    }
+
+    // sort provinces inside each year for stable table
+    for (const [y, arr] of outByYear.entries()){
+      arr.sort((a,b) => (a.province_name || "").localeCompare(b.province_name || ""));
+    }
+
+    return { years: Array.from(years).sort((a,b)=>a-b), outByYear };
+  }
+
+  function getCurrentRows(){
+    return mergedByYear.get(selectedYear) || [];
+  }
+
+  function getScopeRows(){
+    const rows = getCurrentRows();
+    if (!selectedProvinceCode) return rows;
+    return rows.filter(r => String(r.province_code) === String(selectedProvinceCode));
+  }
+
+  function aggregateScope(rows){
+    const agg = {
+      users_total: 0,
+      kwh_total: 0,
+      byCatUsers: new Map(),
+      byCatKwh: new Map(),
+    };
+
+    for (const c of CATEGORY_KEYS){
+      agg.byCatUsers.set(c.key, 0);
+      agg.byCatKwh.set(c.key, 0);
+    }
+
+    for (const r of rows){
+      agg.users_total += Number(r.users_total || 0);
+      agg.kwh_total += Number(r.kwh_total || 0);
+      for (const c of CATEGORY_KEYS){
+        agg.byCatUsers.set(c.key, agg.byCatUsers.get(c.key) + Number(r[`${c.key}_count`] || 0));
+        agg.byCatKwh.set(c.key, agg.byCatKwh.get(c.key) + Number(r[`${c.key}_kwh`] || 0));
+      }
+    }
+
+    return agg;
+  }
+
+  // --------- Charts ----------
+  function renderBar(){
+    const rows = getCurrentRows().slice();
+    const metric = elMetric.value;
+    const topN = Math.max(5, Math.min(77, Number(elTopN.value || 15)));
+
+    // compute value per row
+    const withValue = rows.map(r => {
+      let v = 0;
+      if (metric === "kwh_total") v = r.kwh_total;
+      else if (metric === "users_total") v = r.users_total;
+      else if (metric === "kwh_per_user") v = r.kwh_per_user;
+      else if (metric === "ev_kwh") v = Number(r["ev_charging_kwh"] || 0);
+      else if (metric === "ev_users") v = Number(r["ev_charging_count"] || 0);
+      return { ...r, _v: v };
+    });
+
+    // sort descending for bar
+    withValue.sort((a,b) => (b._v - a._v));
+    const top = withValue.slice(0, topN);
+
+    const labels = top.map(r => r.province_name);
+    const values = top.map(r => r._v);
+
+    const ctx = document.getElementById("barChart");
+    const label =
+      metric === "kwh_total" ? "Total kWh" :
+      metric === "users_total" ? "Total Users" :
+      metric === "kwh_per_user" ? "kWh / User" :
+      metric === "ev_kwh" ? "EV Charging kWh" :
+      "EV Charging Users";
+
+    const tooltipFmt = (v) => {
+      if (metric === "kwh_per_user") return fmt2.format(v);
+      return fmt0.format(v);
+    };
+
+    if (barChart) barChart.destroy();
+    barChart = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [{
+          label,
+          data: values,
+          borderWidth: 1,
+        }]
+      },
+      options: {
+        responsive: true,
+        animation: { duration: 250 },
+        plugins: {
+          legend: { display: true, labels: { color: "#e8ecff" } },
+          tooltip: {
+            callbacks: {
+              label: (context) => {
+                const v = context.raw;
+                return ` ${label}: ${tooltipFmt(v)}`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color: "#a9b2d6", maxRotation: 45, minRotation: 0 },
+            grid: { color: "rgba(255,255,255,.06)" }
+          },
+          y: {
+            ticks: {
+              color: "#a9b2d6",
+              callback: (val) => {
+                if (metric === "kwh_per_user") return fmt2.format(val);
+                // compact-ish without losing too much clarity
+                const n = Number(val);
+                if (n >= 1e9) return (n/1e9).toFixed(1) + "B";
+                if (n >= 1e6) return (n/1e6).toFixed(1) + "M";
+                if (n >= 1e3) return (n/1e3).toFixed(1) + "K";
+                return String(val);
+              }
+            },
+            grid: { color: "rgba(255,255,255,.06)" }
+          }
+        },
+        onClick: (_, elements) => {
+          if (!elements || !elements.length) return;
+          const idx = elements[0].index;
+          const clickedName = labels[idx];
+          const row = top.find(r => r.province_name === clickedName);
+          if (!row) return;
+          selectedProvinceCode = row.province_code;
+          updateAll();
+        }
+      }
+    });
+  }
+
+  function renderPie(){
+    const rows = getScopeRows();
+    const agg = aggregateScope(rows);
+    const mode = elPieMode.value; // kwh or users
+
+    const labels = CATEGORY_KEYS.map(c => c.label);
+    const values = CATEGORY_KEYS.map(c => mode === "kwh"
+      ? agg.byCatKwh.get(c.key)
+      : agg.byCatUsers.get(c.key)
+    );
+
+    // hide categories that are 0 to make the pie readable
+    const filtered = labels.map((l, i) => ({ l, v: Number(values[i] || 0) }))
+      .filter(x => x.v > 0);
+
+    const ctx = document.getElementById("pieChart");
+    if (pieChart) pieChart.destroy();
+
+    const total = filtered.reduce((s,x)=>s+x.v,0);
+
+    pieChart = new Chart(ctx, {
+      type: "pie",
+      data: {
+        labels: filtered.map(x => x.l),
+        datasets: [{
+          data: filtered.map(x => x.v),
+          borderWidth: 1,
+        }]
+      },
+      options: {
+        responsive: true,
+        animation: { duration: 250 },
+        plugins: {
+          legend: {
+            position: "bottom",
+            labels: { color: "#e8ecff" }
+          },
+          tooltip: {
+            callbacks: {
+              label: (context) => {
+                const v = Number(context.raw || 0);
+                const pct = total ? (v / total * 100) : 0;
+                const unit = mode === "kwh" ? "kWh" : "users";
+                const main = mode === "kwh" ? fmt0.format(v) : fmtInt.format(v);
+                return ` ${context.label}: ${main} ${unit} (${pct.toFixed(1)}%)`;
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // --------- Table + KPIs + Insight ----------
+  function renderTable(){
+    const rows = getCurrentRows();
+    const q = (elSearch.value || "").toLowerCase().trim();
+
+    let filtered = rows;
+    if (q){
+      filtered = rows.filter(r => (r.province_name || "").toLowerCase().includes(q));
+    }
+
+    // Sort table by selected metric desc for convenience
+    const metric = elMetric.value;
+    filtered = filtered.slice().sort((a,b) => {
+      const av =
+        metric === "kwh_total" ? a.kwh_total :
+        metric === "users_total" ? a.users_total :
+        metric === "kwh_per_user" ? a.kwh_per_user :
+        metric === "ev_kwh" ? Number(a["ev_charging_kwh"] || 0) :
+        Number(a["ev_charging_count"] || 0);
+      const bv =
+        metric === "kwh_total" ? b.kwh_total :
+        metric === "users_total" ? b.users_total :
+        metric === "kwh_per_user" ? b.kwh_per_user :
+        metric === "ev_kwh" ? Number(b["ev_charging_kwh"] || 0) :
+        Number(b["ev_charging_count"] || 0);
+      return bv - av;
+    });
+
+    elTableBody.innerHTML = "";
+    for (const r of filtered){
+      const tr = document.createElement("tr");
+      tr.style.cursor = "pointer";
+      tr.title = "Click to select this province";
+      tr.onclick = () => { selectedProvinceCode = r.province_code; updateAll(); };
+
+      const evUsers = Number(r["ev_charging_count"] || 0);
+      const evKwh = Number(r["ev_charging_kwh"] || 0);
+
+      tr.innerHTML = `
+        <td><b>${escapeHtml(r.province_name)}</b><div class="muted" style="font-size:11px;">code: ${escapeHtml(String(r.province_code))}</div></td>
+        <td class="right">${fmtInt.format(Math.round(r.users_total || 0))}</td>
+        <td class="right">${fmt0.format(Math.round(r.kwh_total || 0))}</td>
+        <td class="right">${fmt2.format(r.kwh_per_user || 0)}</td>
+        <td class="right">${fmtInt.format(Math.round(evUsers))}</td>
+        <td class="right">${fmt0.format(Math.round(evKwh))}</td>
+      `;
+      elTableBody.appendChild(tr);
+    }
+  }
+
+  function renderKPIsAndInsight(){
+    const scopeRows = getScopeRows();
+    const agg = aggregateScope(scopeRows);
+
+    const scopeName = !selectedProvinceCode
+      ? "All provinces"
+      : (scopeRows[0]?.province_name || `Province ${selectedProvinceCode}`);
+
+    kpiScope.textContent = scopeName;
+    kpiYear.textContent = `Year: ${selectedYear ?? "—"}`;
+    kpiUsers.textContent = fmtInt.format(Math.round(agg.users_total));
+    kpiKwh.textContent = fmt0.format(Math.round(agg.kwh_total));
+    kpiKwhPerUser.textContent = fmt2.format(safeDiv(agg.kwh_total, agg.users_total));
+
+    // Insight: top category offering by selected pie mode + EV penetration
+    const pieMode = elPieMode.value;
+    const byCat = (pieMode === "kwh") ? agg.byCatKwh : agg.byCatUsers;
+
+    let bestKey = null;
+    let bestVal = -Infinity;
+    for (const c of CATEGORY_KEYS){
+      const v = byCat.get(c.key) || 0;
+      if (v > bestVal){
+        bestVal = v;
+        bestKey = c.key;
+      }
+    }
+    const bestLabel = CATEGORY_KEYS.find(c => c.key === bestKey)?.label || "—";
+
+    const evUsers = agg.byCatUsers.get("ev_charging") || 0;
+    const evKwh = agg.byCatKwh.get("ev_charging") || 0;
+    const evUserShare = agg.users_total ? (evUsers / agg.users_total * 100) : 0;
+
+    const unit = pieMode === "kwh" ? "kWh" : "users";
+    const bestMain = pieMode === "kwh" ? fmt0.format(Math.round(bestVal)) : fmtInt.format(Math.round(bestVal));
+
+    insightText.innerHTML = `
+      <div style="margin-bottom:8px;">
+        <b>Dominant category (${pieMode === "kwh" ? "by energy" : "by user count"}):</b>
+        <span>${escapeHtml(bestLabel)}</span> •
+        <span><b>${bestMain}</b> ${unit}</span>
+      </div>
+      <div style="margin-bottom:8px;">
+        <b>EV Charging:</b>
+        <span>${fmtInt.format(Math.round(evUsers))} users</span> •
+        <span>${fmt0.format(Math.round(evKwh))} kWh</span> •
+        <span>${evUserShare.toFixed(2)}% of users</span>
+      </div>
+      <div class="muted">
+        (Click a province in the bar chart or table to compare behavior across areas.)
+      </div>
+    `;
+
+    elSelHint.innerHTML = `Selected: <b>${escapeHtml(scopeName)}</b>`;
+  }
+
+  // --------- Utilities ----------
+  function escapeHtml(str){
+    return String(str)
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
+  }
+
+  function updateAll(){
+    hideError();
+    renderBar();
+    renderPie();
+    renderTable();
+    renderKPIsAndInsight();
+  }
+
+  function fillYearOptions(years){
+    elYear.innerHTML = "";
+    for (const y of years){
+      const opt = document.createElement("option");
+      opt.value = String(y);
+      opt.textContent = String(y);
+      elYear.appendChild(opt);
+    }
+    selectedYear = selectedYear ?? years[years.length - 1]; // default latest year
+    elYear.value = String(selectedYear);
+  }
+
+  // --------- Event wiring ----------
+  elYear.addEventListener("change", () => {
+    selectedYear = Number(elYear.value);
+    selectedProvinceCode = null; // reset selection on year change
+    updateAll();
+  });
+
+  elMetric.addEventListener("change", () => updateAll());
+  elTopN.addEventListener("change", () => updateAll());
+  elTopN.addEventListener("keyup", (e) => { if (e.key === "Enter") updateAll(); });
+
+  elPieMode.addEventListener("change", () => updateAll());
+
+  elReset.addEventListener("click", () => {
+    selectedProvinceCode = null;
+    updateAll();
+  });
+
+  elSearch.addEventListener("input", () => renderTable());
+
+  // --------- Load data ----------
+  async function load(){
+    try{
+      elStatus.textContent = "Loading data…";
+      hideError();
+
+      const [usersResp, usagesResp] = await Promise.all([
+        fetch(USERS_FILE),
+        fetch(USAGES_FILE),
+      ]);
+
+      if (!usersResp.ok){
+        throw new Error(`Failed to load ${USERS_FILE} (HTTP ${usersResp.status})`);
+      }
+      if (!usagesResp.ok){
+        throw new Error(`Failed to load ${USAGES_FILE} (HTTP ${usagesResp.status})`);
+      }
+
+      rawUsers = await usersResp.json();
+      rawUsages = await usagesResp.json();
+
+      // Users file is already an array; usages file is {Sheet1:[...]}
+      const { years, outByYear } = buildMerged(rawUsers, rawUsages);
+      mergedByYear = outByYear;
+
+      if (!years.length){
+        throw new Error("No years found in the dataset.");
+      }
+
+      fillYearOptions(years);
+      elStatus.textContent = `Loaded • ${years.length} year(s)`;
+      updateAll();
+    }catch(err){
+      console.error(err);
+      elStatus.textContent = "Load failed";
+      showError(
+        "Could not load JSON files. Make sure index.html is in the same folder as:\n" +
+        " - electricity_users_en.json\n" +
+        " - electricity_usages_en.json\n\n" +
+        "Also run a local server (not file://) if your browser blocks fetch.\n\n" +
+        "Details: " + (err?.message || String(err))
+      );
+      insightText.textContent = "—";
+    }
+  }
+
+  load();
+</script>
+</body>
+</html>
